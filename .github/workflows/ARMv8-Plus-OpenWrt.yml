@@ -1,25 +1,25 @@
 name: ARMv8 Plus OpenWrt
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
   schedule:
-    - cron: '0 15 * * *'
+    - cron: '0 20 * * *'
 
 env:
-  REPO_URL: 'https://github.com/coolsnowwolf/lede'
-  REPO_BRANCH: 'master'
-  CONFIG_FILE: 'configs/armv8-plus.config'
-  DIY_SCRIPT: 'diy-script.sh'
-  CLASH_KERNEL: 'arm64'
+  REPO_URL: https://github.com/coolsnowwolf/lede
+  REPO_BRANCH: master
+  CONFIG_FILE: configs/armv8-plus.config
+  DIY_SCRIPT: diy-script.sh
+  CLASH_KERNEL: arm64
   CACHE_TOOLCHAIN: true
   UPLOAD_BIN_DIR: false
   FIRMWARE_RELEASE: true
-  FIRMWARE_TAG: 'ROOTFS_PLUS'
+  FIRMWARE_TAG: ROOTFS_PLUS
   OPENWRT_RELEASE: true
-  OPENWRT_TAG: 'ARMv8_PLUS'
-  TZ: 'Asia/Shanghai'
+  OPENWRT_TAG: ARMv8_PLUS
+  TZ: Asia/Shanghai
 
 jobs:
-  Check_Server_Performance:
+  Check-Server-Performance:
     runs-on: ubuntu-22.04
     steps:
       - name: Check Server Performance
@@ -37,8 +37,9 @@ jobs:
           echo "--------------------------硬盘信息--------------------------"
           echo "硬盘数量: $(ls /dev/sd* | grep -v [1-9] | wc -l)" && df -hT
 
-  Initialization_Environment:
+  Initialization-Environment:
     runs-on: ubuntu-22.04
+    needs: Check-Server-Performance
     steps:
       - name: Initialization Environment
         env:
@@ -48,46 +49,46 @@ jobs:
           sudo rm -rf /usr/share/dotnet /etc/apt/sources.list.d /usr/local/lib/android $AGENT_TOOLSDIRECTORY
           sudo -E apt-get -y purge azure-cli ghc* zulu* llvm* firefox google* dotnet* powershell openjdk* mongodb* moby* || true
           sudo -E apt-get -y update
-          sudo -E apt-get -y upgrade
-          sudo -E apt-get -y install apt-transport-https apt-utils automake autotools-dev binutils bison build-essential bzip2 cpio curl debian-archive-keyring debootstrap debootstrap devscripts dh-autoreconf docbook-xml docbook-xsl file flex gawk gettext gettext-base gperf g++ git g++-multilib gpg gpg-agent help2man jq libssl-dev libtool libtool-bin libncurses5-dev libelf-dev lsb-release msmtp nano openssh-client openssh-server patch python3 python3-pip python3-setuptools qemu-utils re2c rsync sudo swig tar texinfo unzip util-linux wget xmlto xz-utils zlib1g-dev
-          sudo -E apt-get -y autoremove --purge
 
-  Package_OpenWrt_Firmware:
+  Package-OpenWrt-Firmware:
     runs-on: ubuntu-22.04
+    needs: Initialization-Environment
     steps:
       - name: Package OpenWrt Firmware
-        if: "steps.download.outputs.status == 'success'"
+        if: steps.download.outputs.status == 'success'
         uses: ophub/flippy-openwrt-actions@main
         env:
-          OPENWRT_ARMVIRT: 'openwrt/bin/targets/*/*/*rootfs.tar.gz'
-          PACKAGE_SOC: 'all'
-          WHOAMI: 'Haiibo'
-          KERNEL_VERSION_NAME: '5.15.13_6.1.5'
+          OPENWRT_ARMVIRT: openwrt/bin/targets/*/*/*rootfs.tar.gz
+          PACKAGE_SOC: all
+          WHOAMI: Haiibo
+          KERNEL_VERSION_NAME: 5.15.13_6.1.5
           KERNEL_AUTO_LATEST: true
-          DISTRIB_REVISION: 'R${{ env.DATE1 }} by Haiibo'
+          DISTRIB_REVISION: R${{ env.DATE1 }} by Haiibo
 
-  Upload_OpenWrt_To_Artifact:
+  Upload-OpenWrt-To-Artifact:
     runs-on: ubuntu-22.04
+    needs: Package-OpenWrt-Firmware
     steps:
       - name: Upload OpenWrt To Artifact
-        if: "env.PACKAGED_STATUS == 'success' && env.OPENWRT_RELEASE != 'true'"
+        if: env.PACKAGED_STATUS == 'success' && env.OPENWRT_RELEASE != 'true'
         uses: kittaakos/upload-artifact-as-is@master
         with:
-          path: '${{ env.PACKAGED_OUTPUTPATH }}'
+          path: ${{ env.PACKAGED_OUTPUTPATH }}
 
-  Upload_OpenWrt_To_Release:
+  Upload-OpenWrt-To-Release:
     runs-on: ubuntu-22.04
+    needs: Upload-OpenWrt-To-Artifact
     steps:
       - name: Upload OpenWrt To Release
-        if: "env.PACKAGED_STATUS == 'success' && env.OPENWRT_RELEASE == 'true'"
+        if: env.PACKAGED_STATUS == 'success' && env.OPENWRT_RELEASE == 'true'
         uses: ncipollo/release-action@v1
         with:
-          name: 'R${{ env.DATE }} for ${{ env.OPENWRT_TAG }}'
+          name: R${{ env.DATE }} for ${{ env.OPENWRT_TAG }}
           allowUpdates: true
           removeArtifacts: true
-          tag: '${{ env.OPENWRT_TAG }}'
-          token: '${{ secrets.GITHUB_TOKEN }}'
-          artifacts: '${{ env.PACKAGED_OUTPUTPATH }}/*'
+          tag: ${{ env.OPENWRT_TAG }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          artifacts: ${{ env.PACKAGED_OUTPUTPATH }}/*
           body: |
             **This is OpenWrt Firmware for Armvirt 64**
             ### 📒 固件信息
